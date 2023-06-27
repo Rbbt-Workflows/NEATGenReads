@@ -13,7 +13,7 @@ module NEATGenReads
   extend Workflow
 
   input :mutations, :array, "Mutations to make haploid", []
-  input :reference, :file, "Reference file", nil, :noload => true
+  input :reference, :file, "Reference file", nil, :nofile => true
   task :mutations_to_reference =>  :tsv do |mutations,reference|
     reference = reference.path if Step === reference
     reference = Samtools.prepare_FASTA(reference, file('reference'))
@@ -21,7 +21,7 @@ module NEATGenReads
   end
 
   dep :mutations_to_reference
-  input :reference, :file, "Reference file", nil, :noload => true
+  input :reference, :file, "Reference file", nil, :nofile => true
   input :depth, :integer, "Sequencing depth to simulate", 60
   input :haploid_reference, :boolean, "Reference is haploid (each chromosome copy separate)"
   input :sample_name, :string, "Sample name", nil, :jobname => true
