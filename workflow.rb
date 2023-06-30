@@ -2,7 +2,9 @@ Misc.add_libdir if __FILE__ == $0
 
 #require 'scout/sources/NEATGenReads'
 require 'tools/NEATGenReads'
+require 'tools/NEAT'
 require 'NEATGenReads/haploid'
+require 'NEATGenReads/minify'
 require 'NEATGenReads/rename'
 
 Workflow.require_workflow "Sequence"
@@ -12,7 +14,77 @@ require 'tools/samtools'
 module NEATGenReads
   extend Workflow
 
-  input :mutations, :array, "Mutations to make haploid", []
+  input :reference, :file, "Reference file", nil, :nofile => true
+  input :organism, :string, "Organism code"
+  input :build, :select, "Organism build", "hg38", :select_options => %w(hg19 b37 hg39 GRCh38 GRCh37)
+  input :sizes, :tsv, "Sizes of each chromosome's beggining to preserve"
+  input :padding, :integer, "Extra bases to add to reference", 5_000
+  input :do_vcf, :boolean, "Minimize also the vcfs", true
+  extension 'fa.gz'
+  task :prepare_reference => :binary do |reference,organism,build,sizes,padding,do_vcf|
+    if reference
+      build = File.basename(reference).sub(/\.gz$/,'').sub(/\.(fa)/,'')
+    else
+      build ||= Organism.organism_to_build(options[:organism])
+      reference = HTS.helpers[:reference_file].call(build)
+    end
+
+    output = file(build)
+
+    reference_path = Path.setup(File.dirname(reference))
+
+    files = reference_path.glob_all("**/*")
+
+    files_info = files.collect{|file| [file, file.sub(reference_path.find, '')] * "<=>" }
+
+    if sizes
+      cpus = config :cpus, :miniref, :default => 3
+      TSV.traverse files_info, :type => :array, :bar => self.progress_bar("Minifying reference files"), :cpus => cpus do |file_info|
+        file ,_sep, subpath = file_info.partition("<=>")
+
+        target = output[subpath].find.remove_extension('.gz')
+        type = case file
+               when /\.vcf(?:\.gz)?$/
+                 next unless do_vcf
+                 NEATGenReads.minify_vcf(file, target, sizes)
+
+               when /\.fa(?:sta)?(?:\.gz)?$/
+                 NEATGenReads.minify_fasta(file, target, sizes)
+               else
+                 next
+               end
+        CMD.cmd(:bgzip, target)
+        nil
+      end
+    else
+      Open.ln_s reference_path, output
+    end
+
+    reference = output["#{build}.fa.gz"]
+
+    chr_reference = file('chr_reference')
+    Open.mkdir chr_reference
+
+    chrs = []
+    file = nil
+    TSV.traverse reference, :type => :array, :bar => self.progress_bar("Dividing reference contigs") do |line|
+
+      if m = line.match(/>([^\s]*)/)
+        chr = m.captures[0]
+        chrs << chr
+        file.close if file
+        file = Open.open(chr_reference[chr].reference, :mode => 'w')
+      end
+
+      file.puts line
+    end
+    file.close
+
+    Open.ln_s reference, self.tmp_path
+    nil
+  end
+
+  input :mutations, :array, "Mutations to match to reference", []
   input :reference, :file, "Reference file", nil, :nofile => true
   task :mutations_to_reference =>  :tsv do |mutations,reference|
     reference = reference.path if Step === reference
@@ -20,7 +92,8 @@ module NEATGenReads
     mutation_reference_tsv = NEATGenReads.mutation_reference(mutations, reference).to_s
   end
 
-  dep :mutations_to_reference
+  dep :prepare_reference
+  dep :mutations_to_reference, :reference => :prepare_reference
   input :reference, :file, "Reference file", nil, :nofile => true
   input :depth, :integer, "Sequencing depth to simulate", 60
   input :haploid_reference, :boolean, "Reference is haploid (each chromosome copy separate)"
@@ -61,27 +134,9 @@ module NEATGenReads
       end
     end
 
+    chr_reference = step(:prepare_reference).file('chr_reference')
+
     chr_output = file('chr_output')
-    reference_gunzip = file('hg38.fa')
-    io = CMD.cmd(:zcat, "'#{reference}'", :pipe => true)
-
-    Open.mkdir chr_output
-
-    chrs = []
-    file = nil
-    TSV.traverse io, :type => :array do |line|
-
-      if m = line.match(/>([^\s]*)/)
-        chr = m.captures[0]
-        chrs << chr
-        file.close if file
-        file = Open.open(chr_output[chr].reference, :mode => 'w')
-      end
-
-      file.puts line
-    end
-    file.close
-
     output = file('output')
 
     fq1 = output[sample_name] + "_read1.fq"
@@ -89,18 +144,13 @@ module NEATGenReads
     bam = output[sample_name] + ".bam"
 
     cpus = config(:cpus, :genReads, :NEAT, :gen_reads)
+    chrs = chr_reference.glob("*").collect{|f| File.basename(f) }
     TSV.traverse chrs, :type => :array, :cpus => cpus, :bar => self.progress_bar("Generating reads by chromosome") do |chr|
       Open.mkdir chr_output[chr]
-      reference = chr_output[chr].reference
-      if no_errors
-        CMD.cmd_log("gen_reads.py", "-c #{depth} -r '#{reference}' -E 0 -p #{ploidy} -M 0 -R #{read_length} --pe 300 30 -o '#{chr_output[chr][sample_name]}' -v '#{mutations_vcf}' --vcf --bam")
-      elsif error_rate
-        CMD.cmd_log("gen_reads.py", "-c #{depth} -r '#{reference}' -E #{error_rate} -p #{ploidy} -M 0 -R #{read_length} --pe 300 30 -o '#{chr_output[chr][sample_name]}' -v '#{mutations_vcf}' --vcf --bam")
-      else
-        CMD.cmd_log("gen_reads.py", "-c #{depth} -r '#{reference}' -p #{ploidy} -M 0 -R #{read_length} --pe 300 30 -o '#{chr_output[chr][sample_name]}' -v '#{mutations_vcf}' --vcf --bam")
-      end
+      reference = chr_reference[chr].reference
+      error_rate = 0 if no_errors
+      NEATGenReads.simulate(reference, mutations_vcf, chr_output[chr][sample_name], depth: depth, ploidy: ploidy, read_length: read_length, error_rate: error_rate)
     end 
-
     
     # Merge VCF
     vcf_file = output[sample_name] + ".vcf"
@@ -132,15 +182,9 @@ module NEATGenReads
 
     # Merge FASTQ
     Open.rm fq1
-    #chr_output.glob("*/*_read1.fq.gz").each do |file|
-      #CMD.cmd("zcat '#{file}' >> '#{fq1}'")
-    #end
     CMD.cmd("zcat '#{chr_output}'/*/*_read1.fq.gz >> '#{fq1}'")
     
     Open.rm fq2
-    #chr_output.glob("*/*_read2.fq.gz").each do |file|
-    #  CMD.cmd("zcat '#{file}' >> '#{fq2}'")
-    #end
     CMD.cmd("zcat '#{chr_output}'/*/*_read2.fq.gz >> '#{fq2}'")
 
     # Rename reads
@@ -166,8 +210,6 @@ module NEATGenReads
 
     output.glob("*.fq.gz")
   end
-
-
 end
 
 #require 'NEATGenReads/tasks/basic.rb'

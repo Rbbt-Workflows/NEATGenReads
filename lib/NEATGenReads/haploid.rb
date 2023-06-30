@@ -118,5 +118,4 @@ module NEATGenReads
 
     [type, chr, start, eend, target_chr, target_start, target_end]
   end
-
 end

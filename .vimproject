@@ -1,17 +1,17 @@
 NEATGenReads=/$PWD filter="*.rb *.rake Rakefile *.rdoc *.R *.sh *.js *.haml *.sass *.txt *.conf" {
- workflow.rb
  bin=bin filter="*"{
  }
  lib=lib {
   NEATGenReads=NEATGenReads{
+   minify.rb
    haploid.rb
    rename.rb
   }
   tools=tools{
    NEATGenReads.rb
-   samtools.rb
   }
  }
+ workflow.rb
  test=test {
   test_helper.rb
  }
