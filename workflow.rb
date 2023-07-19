@@ -2,7 +2,6 @@ Misc.add_libdir if __FILE__ == $0
 
 #require 'scout/sources/NEATGenReads'
 require 'tools/NEATGenReads'
-require 'tools/NEAT'
 require 'NEATGenReads/haploid'
 require 'NEATGenReads/minify'
 require 'NEATGenReads/rename'
@@ -103,8 +102,9 @@ module NEATGenReads
   input :restore_svs, :tsv, "SVs to consider when renaming reads", nil, :nofile => true
   input :error_rate, :float, "Error rate to rescale the error mode to have it as mean", -1
   input :read_length, :integer, "Read length to simulate", 126
+  input :gc_model, :file, "GC empirical model"
   dep Sequence, :mutations_to_vcf, "Sequence#reference" => :mutations_to_reference, :not_overriden => true, :mutations => :skip, :organism => :skip, :positions => :skip
-  task :NEAT_simulate_DNA => :array do |reference,depth,haploid,sample_name,no_errors,rename_reads,svs,error_rate,read_length|
+  task :NEAT_simulate_DNA => :array do |reference,depth,haploid,sample_name,no_errors,rename_reads,svs,error_rate,read_length,gc_model|
 
     if haploid
       depth = (depth.to_f / 2).ceil
@@ -149,7 +149,7 @@ module NEATGenReads
       Open.mkdir chr_output[chr]
       reference = chr_reference[chr].reference
       error_rate = 0 if no_errors
-      NEATGenReads.simulate(reference, mutations_vcf, chr_output[chr][sample_name], depth: depth, ploidy: ploidy, read_length: read_length, error_rate: error_rate)
+      NEATGenReads.simulate(reference, mutations_vcf, chr_output[chr][sample_name], depth: depth, ploidy: ploidy, read_length: read_length, error_rate: error_rate, gc_model: gc_model)
     end 
     
     # Merge VCF
