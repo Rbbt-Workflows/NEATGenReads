@@ -2,6 +2,7 @@ Misc.add_libdir if __FILE__ == $0
 
 #require 'scout/sources/NEATGenReads'
 require 'tools/NEATGenReads'
+require 'tools/NEAT'
 require 'NEATGenReads/haploid'
 require 'NEATGenReads/minify'
 require 'NEATGenReads/rename'
@@ -16,11 +17,8 @@ module NEATGenReads
   input :reference, :file, "Reference file", nil, :nofile => true
   input :organism, :string, "Organism code"
   input :build, :select, "Organism build", "hg38", :select_options => %w(hg19 b37 hg39 GRCh38 GRCh37)
-  input :sizes, :tsv, "Sizes of each chromosome's beggining to preserve"
-  input :padding, :integer, "Extra bases to add to reference", 5_000
-  input :do_vcf, :boolean, "Minimize also the vcfs", true
   extension 'fa.gz'
-  task :prepare_reference => :binary do |reference,organism,build,sizes,padding,do_vcf|
+  task :prepare_reference => :binary do |reference,organism,build|
     if reference
       build = File.basename(reference).sub(/\.gz$/,'').sub(/\.(fa)/,'')
     else
@@ -36,28 +34,7 @@ module NEATGenReads
 
     files_info = files.collect{|file| [file, file.sub(reference_path.find, '')] * "<=>" }
 
-    if sizes
-      cpus = config :cpus, :miniref, :default => 3
-      TSV.traverse files_info, :type => :array, :bar => self.progress_bar("Minifying reference files"), :cpus => cpus do |file_info|
-        file ,_sep, subpath = file_info.partition("<=>")
-
-        target = output[subpath].find.remove_extension('.gz')
-        type = case file
-               when /\.vcf(?:\.gz)?$/
-                 next unless do_vcf
-                 NEATGenReads.minify_vcf(file, target, sizes)
-
-               when /\.fa(?:sta)?(?:\.gz)?$/
-                 NEATGenReads.minify_fasta(file, target, sizes)
-               else
-                 next
-               end
-        CMD.cmd(:bgzip, target)
-        nil
-      end
-    else
-      Open.ln_s reference_path, output
-    end
+    Open.ln_s reference_path, output
 
     reference = output["#{build}.fa.gz"]
 
@@ -73,6 +50,7 @@ module NEATGenReads
         chrs << chr
         file.close if file
         file = Open.open(chr_reference[chr].reference, :mode => 'w')
+        line = line.split(/\s/).first
       end
 
       file.puts line
@@ -93,7 +71,6 @@ module NEATGenReads
 
   dep :prepare_reference
   dep :mutations_to_reference, :reference => :prepare_reference
-  input :reference, :file, "Reference file", nil, :nofile => true
   input :depth, :integer, "Sequencing depth to simulate", 60
   input :haploid_reference, :boolean, "Reference is haploid (each chromosome copy separate)"
   input :sample_name, :string, "Sample name", nil, :jobname => true
@@ -104,7 +81,7 @@ module NEATGenReads
   input :read_length, :integer, "Read length to simulate", 126
   input :gc_model, :file, "GC empirical model"
   dep Sequence, :mutations_to_vcf, "Sequence#reference" => :mutations_to_reference, :not_overriden => true, :mutations => :skip, :organism => :skip, :positions => :skip
-  task :NEAT_simulate_DNA => :array do |reference,depth,haploid,sample_name,no_errors,rename_reads,svs,error_rate,read_length,gc_model|
+  task :NEAT_simulate_DNA => :array do |depth,haploid,sample_name,no_errors,rename_reads,svs,error_rate,read_length,gc_model|
 
     if haploid
       depth = (depth.to_f / 2).ceil
@@ -206,7 +183,7 @@ module NEATGenReads
     CMD.cmd(:bgzip, output[sample_name] + ".vcf")
 
     # Cleanup parts
-    FileUtils.rm_rf chr_output
+    #FileUtils.rm_rf chr_output
 
     output.glob("*.fq.gz")
   end

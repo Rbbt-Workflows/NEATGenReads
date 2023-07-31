@@ -2,7 +2,7 @@ require 'fc'
 
 module NEATGenReads
   def self.restore_VCF_positions(vcf, svs, bar = nil)
-    collect_fragments, insert_fragments, remove_fragments, duplications = self.SV_regions(svs)
+    collect_fragments, insert_fragments, remove_fragments, duplications = SyntheticCancerGenome.SV_regions(svs)
 
     insertions = {}
     insert_fragments.each do |id,chr,s,e,inverse|
@@ -43,7 +43,7 @@ module NEATGenReads
 
   def self.rename_FASTQ_reads(golden_bam, fastq1, fastq2, target_fastq1, target_fastq2, svs, bar = nil)
     if svs
-      collect_fragments, insert_fragments, remove_fragments, duplications = self.SV_regions(svs)
+      collect_fragments, insert_fragments, remove_fragments, duplications = SyntheticCancerGenome.SV_regions(svs)
 
       insertions = {}
       insert_fragments.each do |id,chr,s,e,inverse|
