@@ -2,7 +2,6 @@ Misc.add_libdir if __FILE__ == $0
 
 #require 'scout/sources/NEATGenReads'
 require 'tools/NEATGenReads'
-require 'tools/NEAT'
 require 'NEATGenReads/haploid'
 require 'NEATGenReads/minify'
 require 'NEATGenReads/rename'
@@ -183,7 +182,7 @@ module NEATGenReads
     CMD.cmd(:bgzip, output[sample_name] + ".vcf")
 
     # Cleanup parts
-    #FileUtils.rm_rf chr_output
+    FileUtils.rm_rf chr_output
 
     output.glob("*.fq.gz")
   end
