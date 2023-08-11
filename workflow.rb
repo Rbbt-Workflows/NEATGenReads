@@ -121,6 +121,15 @@ module NEATGenReads
 
     cpus = config(:cpus, :genReads, :NEAT, :gen_reads)
     chrs = chr_reference.glob("*").collect{|f| File.basename(f) }
+    chrs.reject! do |chr| 
+      chr.include?("HLA") ||
+      chr.include?("decoy") ||
+      chr.include?("random") ||
+      chr.include?("alt") ||
+      chr.include?("chrUn") ||
+      chr.include?("EBV")
+    end
+    iif chrs
     TSV.traverse chrs, :type => :array, :cpus => cpus, :bar => self.progress_bar("Generating reads by chromosome") do |chr|
       Open.mkdir chr_output[chr]
       reference = chr_reference[chr].reference
