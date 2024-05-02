@@ -81,7 +81,7 @@ module NEATGenReads
   input :read_length, :integer, "Read length to simulate", 126
   input :gc_model, :file, "GC empirical model"
   dep Sequence, :mutations_to_vcf, "Sequence#reference" => :mutations_to_reference, :not_overriden => true, :mutations => :skip, :organism => :skip, :positions => :skip
-  task :NEAT_simulate_DNA => :array do |depth,haploid,sample_name,no_errors,rename_reads,svs,error_rate,read_length,gc_model|
+  task :NEAT_simulate_DNA => :array do |mutations,depth,haploid,sample_name,no_errors,rename_reads,svs,error_rate,read_length,gc_model|
 
     if haploid
       depth = (depth.to_f / 2).ceil
@@ -130,7 +130,6 @@ module NEATGenReads
       chr.include?("chrUn") ||
       chr.include?("EBV")
     end
-    iif chrs
     TSV.traverse chrs, :type => :array, :cpus => cpus, :bar => self.progress_bar("Generating reads by chromosome") do |chr|
       Open.mkdir chr_output[chr]
       reference = chr_reference[chr].reference
