@@ -68,8 +68,9 @@ module NEATGenReads
     mutation_reference_tsv = NEATGenReads.mutation_reference(mutations, reference).to_s
   end
 
+  input :mutations, :array, "Mutations to include in the simulation", []
   dep :prepare_reference
-  dep :mutations_to_reference, :reference => :prepare_reference
+  dep :mutations_to_reference, :reference => :prepare_reference, :mutations => :mutations
   input :depth, :integer, "Sequencing depth to simulate", 60
   input :haploid_reference, :boolean, "Reference is haploid (each chromosome copy separate)"
   input :sample_name, :string, "Sample name", nil, :jobname => true
