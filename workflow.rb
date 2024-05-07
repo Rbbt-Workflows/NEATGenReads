@@ -4,8 +4,6 @@ Misc.add_libdir if __FILE__ == $0
 require 'tools/NEATGenReads'
 require 'NEATGenReads/haploid'
 require 'NEATGenReads/minify'
-require 'NEATGenReads/rename'
-
 Workflow.require_workflow "Sequence"
 Workflow.require_workflow "HTS"
 require 'tools/samtools'
@@ -68,9 +66,8 @@ module NEATGenReads
     mutation_reference_tsv = NEATGenReads.mutation_reference(mutations, reference).to_s
   end
 
-  input :mutations, :array, "Mutations to include in the simulation", []
   dep :prepare_reference
-  dep :mutations_to_reference, :reference => :prepare_reference, :mutations => :mutations
+  dep :mutations_to_reference, :reference => :prepare_reference
   input :depth, :integer, "Sequencing depth to simulate", 60
   input :haploid_reference, :boolean, "Reference is haploid (each chromosome copy separate)"
   input :sample_name, :string, "Sample name", nil, :jobname => true
@@ -81,7 +78,7 @@ module NEATGenReads
   input :read_length, :integer, "Read length to simulate", 126
   input :gc_model, :file, "GC empirical model"
   dep Sequence, :mutations_to_vcf, "Sequence#reference" => :mutations_to_reference, :not_overriden => true, :mutations => :skip, :organism => :skip, :positions => :skip
-  task :NEAT_simulate_DNA => :array do |mutations,depth,haploid,sample_name,no_errors,rename_reads,svs,error_rate,read_length,gc_model|
+  task :NEAT_simulate_DNA => :array do |depth,haploid,sample_name,no_errors,rename_reads,svs,error_rate,read_length,gc_model|
 
     if haploid
       depth = (depth.to_f / 2).ceil
@@ -196,6 +193,9 @@ module NEATGenReads
     output.glob("*.fq.gz")
   end
 end
+
+require 'NEATGenReads/rename'
+
 
 #require 'NEATGenReads/tasks/basic.rb'
 

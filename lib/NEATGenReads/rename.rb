@@ -1,5 +1,6 @@
 require 'fc'
 
+Workflow.require_workflow "SyntheticCancerGenome"
 module NEATGenReads
   def self.restore_VCF_positions(vcf, svs, bar = nil)
     collect_fragments, insert_fragments, remove_fragments, duplications = SyntheticCancerGenome.SV_regions(svs)
