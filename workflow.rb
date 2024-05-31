@@ -155,7 +155,8 @@ module NEATGenReads
     vcf.close
 
     if svs
-      Open.write(file('tmp.vcf'), NEATGenReads.restore_VCF_positions(vcf, svs, self.progress_bar("Restoring VCF positions")))
+      svs = TSV.open(svs) unless TSV === svs
+      Open.write(file('tmp.vcf'), NEATGenReads.restore_VCF_positions(vcf_file, svs, self.progress_bar("Restoring VCF positions")))
       Open.mv file('tmp.vcf'), vcf_file
     end
 
