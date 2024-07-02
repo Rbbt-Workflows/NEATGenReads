@@ -1,9 +1,10 @@
 module NEATGenReads
-  def self.haploid_chr(chr, pos, alternatives=%w(copy-1_chr copy-2_chr))
+  def self.haploid_chr(chr, pos, alternatives=nil)
     return chr if chr =~ /^copy-\d+_/
     chr = chr.sub(/^chr/,'')
     num = Misc.digest(chr + ":" << pos.to_s)[-1].hex
-    alternatives[num % alternatives.length] + chr
+    alternatives=%w(copy-1_chr copy-2_chr).collect{|p| p + chr } if alternatives.nil?
+    alternatives[num % alternatives.length]
   end
 
   def self.haploid_mutation(mutation, alternatives=%w(copy-1_chr copy-2_chr))
