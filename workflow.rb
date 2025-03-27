@@ -73,7 +73,7 @@ module NEATGenReads
   input :sample_name, :string, "Sample name", nil, :jobname => true
   input :no_errors, :boolean, "Don't simulate sequencing errors", false
   input :rename_reads, :boolean, "Rename reads to include position info", true
-  input :restore_svs, :tsv, "SVs to consider when renaming reads", nil, :nofile => true
+  input :restore_svs, :tsv, "SVs to consider when renaming reads", nil, :nofile => true, :noload => true
   input :error_rate, :float, "Error rate to rescale the error mode to have it as mean", -1
   input :read_length, :integer, "Read length to simulate", 126
   input :gc_model, :file, "GC empirical model"
