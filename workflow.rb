@@ -165,7 +165,8 @@ module NEATGenReads
 
     Misc.in_dir chr_output do
       relative_bam_parts = bam_parts.collect{|p| "'" + Misc.path_relative_to(chr_output, p) + "'" }
-      CMD.cmd(:samtools, "merge -f '#{bam}' #{relative_bam_parts * " "}")
+      samtools_cpus = config(:cpus, :samtools, :merge, defalut: 0)
+      CMD.cmd(:samtools, "merge -f '#{bam}' --threads #{sample_cpus} #{relative_bam_parts * " "}")
     end
 
     # Merge FASTQ
@@ -202,6 +203,7 @@ end
 
 require 'NEATGenReads/rename'
 
+Workflow.main = NEATGenReads
 
 #require 'NEATGenReads/tasks/basic.rb'
 
