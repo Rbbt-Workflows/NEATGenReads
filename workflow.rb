@@ -87,6 +87,8 @@ module NEATGenReads
       ploidy = 2
     end
 
+    sample_name ||= self.clean_name
+
     mutations_vcf = file('mutations.vcf')
     Open.write(mutations_vcf) do |sin|
       vcf = step(:mutations_to_vcf)
