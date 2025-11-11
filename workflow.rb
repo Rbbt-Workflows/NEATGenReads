@@ -129,10 +129,11 @@ module NEATGenReads
       chr.include?("chrUn") ||
       chr.include?("EBV")
     end
+
     TSV.traverse chrs, :type => :array, :cpus => cpus, :bar => self.progress_bar("Generating reads by chromosome") do |chr|
       if File.directory?(chr_output[chr]) 
         bam = chr_output[chr].glob("*.bam").first
-        next if bam.exists? && File.size(bam) > 0
+        next if bam && bam.exists? && File.size(bam) > 0
       end
 
       Open.mkdir chr_output[chr]
