@@ -1,4 +1,5 @@
 NEATGenReads=/$PWD filter="*.rb *.rake Rakefile *.rdoc *.R *.sh *.js *.haml *.sass *.txt *.conf" {
+ workflow.rb
  bin=bin filter="*"{
  }
  lib=lib {
@@ -11,10 +12,15 @@ NEATGenReads=/$PWD filter="*.rb *.rake Rakefile *.rdoc *.R *.sh *.js *.haml *.sa
    NEATGenReads.rb
   }
  }
- workflow.rb
  test=test {
   test_helper.rb
  }
  data=data filter="*"{
+ }
+ examples=examples files="*"{
+  NEAT_simulate_DNA=NEAT_simulate_DNA{
+   Minimal=Minimal{
+   }
+  }
  }
 }
