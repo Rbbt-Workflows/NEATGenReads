@@ -18,26 +18,27 @@ module NEATGenReads
   extension 'fa.gz'
   task :prepare_reference => :binary do |reference,organism,build|
     if reference
-      build = File.basename(reference).sub(/\.gz$/,'').sub(/\.(fa)/,'')
+      reference = Open.find reference
+      build = File.basename(reference).sub(/\.gz$/,'').sub(/\.fa$/,'')
     else
       build ||= Organism.organism_to_build(options[:organism])
       reference = HTS.helpers[:reference_file].call(build)
     end
 
     output = file(build)
-
-    reference_path = Path.setup(File.dirname(reference))
-    files = reference_path.glob_all("**/*")
-
-    files_info = files.collect{|file| [file, file.sub(reference_path.find, '')] * "<=>" }
-
     Open.rm output
-    Open.ln_s reference_path, output
-
-    reference = output.glob("*.gz").first
 
     chr_reference = file('chr_reference')
     Open.mkdir chr_reference
+
+    #reference_path = Path.setup(File.dirname(reference))
+    #files = reference_path.glob_all("**/*")
+
+    #files_info = files.collect{|file| [file, file.sub(reference_path.find, '')] * "<=>" }
+
+    #Open.ln_s reference_path, output
+
+    #reference = output.glob("*.gz").first
 
     chrs = []
     file = nil
