@@ -1,5 +1,6 @@
 Misc.add_libdir if __FILE__ == $0
 
+require 'rbbt-util'
 #require 'scout/sources/NEATGenReads'
 require 'tools/NEATGenReads'
 require 'NEATGenReads/haploid'
@@ -26,14 +27,14 @@ module NEATGenReads
     output = file(build)
 
     reference_path = Path.setup(File.dirname(reference))
-
     files = reference_path.glob_all("**/*")
 
     files_info = files.collect{|file| [file, file.sub(reference_path.find, '')] * "<=>" }
 
+    Open.rm output
     Open.ln_s reference_path, output
 
-    reference = output["#{build}.fa.gz"]
+    reference = output.glob("*.gz").first
 
     chr_reference = file('chr_reference')
     Open.mkdir chr_reference
@@ -132,8 +133,8 @@ module NEATGenReads
 
     TSV.traverse chrs, :type => :array, :cpus => cpus, :bar => self.progress_bar("Generating reads by chromosome") do |chr|
       if File.directory?(chr_output[chr]) 
-        bam = chr_output[chr].glob("*.bam").first
-        next if bam && bam.exists? && File.size(bam) > 0
+        pbam = chr_output[chr].glob("*.bam").first
+        next if pbam && pbam.exists? && File.size(pbam) > 0
       end
 
       Open.mkdir chr_output[chr]
@@ -168,16 +169,24 @@ module NEATGenReads
 
     Misc.in_dir chr_output do
       relative_bam_parts = bam_parts.collect{|p| "'" + Misc.path_relative_to(chr_output, p) + "'" }
-      samtools_cpus = config(:cpus, :samtools, :merge, defalut: 0)
+      samtools_cpus = config(:cpus, :samtools, :merge, default: 0)
       CMD.cmd(:samtools, "merge -f '#{bam}' --threads #{samtools_cpus} #{relative_bam_parts * " "}")
     end
 
-    # Merge FASTQ
     Open.rm fq1
-    CMD.cmd("zcat '#{chr_output}'/*/*_read1.fq.gz >> '#{fq1}'")
-    
+    chr_output.glob('/*/*_read1.fq.gz').sort.each do |file|
+      CMD.cmd("zcat '#{file}' >> '#{fq1}'")
+    end
+
     Open.rm fq2
-    CMD.cmd("zcat '#{chr_output}'/*/*_read2.fq.gz >> '#{fq2}'")
+    chr_output.glob('/*/*_read2.fq.gz').sort.each do |file|
+      CMD.cmd("zcat '#{file}' >> '#{fq2}'")
+    end
+
+
+    # Merge FASTQ
+    #CMD.cmd("zcat '#{chr_output}'/*/*_read1.fq.gz >> '#{fq1}'")
+    #CMD.cmd("zcat '#{chr_output}'/*/*_read2.fq.gz >> '#{fq2}'")
 
     # Rename reads
     if rename_reads

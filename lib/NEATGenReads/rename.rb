@@ -142,7 +142,9 @@ module NEATGenReads
         while true
           line1 = f1.gets.strip
           line2 = f2.gets.strip
-          gb_line = sgb_io.gets.strip
+          gb_line = sgb_io.gets
+
+          gb_line = gb_line.strip
 
           name = line1.scan(/^@(.*)\/1/).flatten.first
           gb_name, _sep, new_name = gb_line.partition("\t")
